@@ -1,0 +1,28 @@
+files:
+- main.swift
+- Adafruit_ATParser.h
+- Adafruit_BLE.h
+- Adafruit_BLEBattery.h
+- Adafruit_BLEEddystone.h
+- Adafruit_BLEGatt.h
+- Adafruit_BLEMIDI.h
+- Adafruit_BluefruitLE_SPI.h
+- Adafruit_BluefruitLE_UART.h
+- Adafruit_ATParser.cpp
+- Adafruit_BLE.cpp
+- Adafruit_BLEBattery.cpp
+- Adafruit_BLEEddystone.cpp
+- Adafruit_BLEGatt.cpp
+- Adafruit_BLEMIDI.cpp
+- Adafruit_BluefruitLE_SPI.cpp
+- Adafruit_BluefruitLE_UART.cpp
+- utility/Adafruit_FIFO.cpp
+- utility/Adafruit_FIFO.h
+- utility/TimeoutTimer.h
+- utility/common_header.h
+- utility/errors.h
+- utility/sdep.h
+
+settings:
+  INCLUDE_PRINTF_FLT: 'no'
+  MISSING_RUNTIME_SHOW_WARNING: 'yes'
