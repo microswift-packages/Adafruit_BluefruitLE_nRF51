@@ -22,7 +22,6 @@ files:
 - utility/common_header.h
 - utility/errors.h
 - utility/sdep.h
-
 settings:
-  INCLUDE_PRINTF_FLT: 'no'
   MISSING_RUNTIME_SHOW_WARNING: 'yes'
+  INCLUDE_PRINTF_FLT: 'no'
