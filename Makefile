@@ -413,7 +413,7 @@ endif
 
 
 # *** MAIN PHONEY TARGETS ***
-.PHONY : all clean_buildlog upload clean diagnostics
+.PHONY : all clean_buildlog upload clean diagnostics packages packages-clean packages-update packages-build
 .PHONY : abort_check abort_analyze runtime_absence_check build_main_executable simulate simulate-gdb simulate-test.log
 .PHONY : AVR_HW_LIB ARM_HW_LIB
 .INTERMEDIATE : $(AUTOLINK_FILE)
@@ -546,7 +546,11 @@ ifneq ($(RAM_SIZE),)
 DATA_SECTION_SIZE=--defsym=__DATA_REGION_LENGTH__=$(RAM_SIZE)
 endif
 
-all:  $(FULL_BUILD_PATH) $(ALL_TARGETS)
+PACKAGE_DIR = .build
+PACKAGE_MODULE_DIR = .build/checkouts
+
+#packages
+all: $(FULL_BUILD_PATH) $(ALL_TARGETS)
 scan_errors: $(ERROR_LOG)
 .PHONY: scan_errors $(ERROR_LOG) # always recreate error log from latest build
 
@@ -573,6 +577,28 @@ clean:
 
 clean_buildlog:
 	cat /dev/null > $(BUILD_LOG)
+
+ifeq ($(wildcard Package.swift),)
+packages-clean:
+packages:
+else
+packages-clean:
+	-rm -rf $(PACKAGE_DIR)
+
+packages-update:
+	swift package update
+
+PACKAGE_SUBDIRS = $(sort $(dir $(wildcard $(PACKAGE_MODULE_DIR)/*/)))
+PACKAGE_LIBRARIES = $(patsubst %,%/lib%.a,$(PACKAGE_SUBDIRS))
+
+$(PACKAGE_MODULE_DIR)/%/lib%.a: $(PACKAGE_MODULE_DIR)/%/Package.swift
+	$(MAKE) -C $(dir $@)
+
+packages-build: $(PACKAGE_LIBRARIES)
+
+packages: packages-update packages-build
+
+endif
 
 ifneq ($(FULL_BUILD_PATH),)
 $(FULL_BUILD_PATH):
