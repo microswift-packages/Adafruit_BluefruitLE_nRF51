@@ -396,14 +396,16 @@ CLANG ?= "$(LLVM_TOOLS_DIR)/clang" $(CLANG_OPTS)
 CLANG_PP ?= "$(LLVM_TOOLS_DIR)/clang++" $(CLANG_PP_OPTS)
 SWIFT_IDE_TOOL ?= $(SWIFTC_DIR)/swift-ide-test
 
-SWIFT_TO_BC ?= "$(SWIFTC)" $(TARGET_OPTS) $(SWIFT_TO_BC_OPTS) $(SWIFTC_OPTS)
-SWIFT_TO_SIL ?= "$(SWIFTC)" $(TARGET_OPTS) $(SWIFT_TO_SIL_OPTS) $(SWIFTC_OPTS)
-SWIFT_TO_CSIL ?= "$(SWIFTC)" $(TARGET_OPTS) $(SWIFT_TO_CSIL_OPTS) $(SWIFTC_OPTS)
-SWIFT_MAKE_MODULE ?= "$(SWIFTC)" $(TARGET_OPTS) $(SWIFT_MAKE_MODULE_OPTS) $(SWIFTC_OPTS)
+# Injection points for SPM packages are SWIFTC_PACKAGES_OPTS and C_PACKAGES_OPTS
+
+SWIFT_TO_BC ?= "$(SWIFTC)" $(TARGET_OPTS) $(SWIFT_TO_BC_OPTS) $(SWIFTC_PACKAGES_OPTS) $(SWIFTC_OPTS)
+SWIFT_TO_SIL ?= "$(SWIFTC)" $(TARGET_OPTS) $(SWIFT_TO_SIL_OPTS) $(SWIFTC_PACKAGES_OPTS) $(SWIFTC_OPTS)
+SWIFT_TO_CSIL ?= "$(SWIFTC)" $(TARGET_OPTS) $(SWIFT_TO_CSIL_OPTS) $(SWIFTC_PACKAGES_OPTS) $(SWIFTC_OPTS)
+SWIFT_MAKE_MODULE ?= "$(SWIFTC)" $(TARGET_OPTS) $(SWIFT_MAKE_MODULE_OPTS) $(SWIFTC_PACKAGES_OPTS) $(SWIFTC_OPTS)
 
 SWIFT_MAKE_MODULE_DOC ?= "$(SWIFT_IDE_TOOL)" $(TARGET_OPTS) $(SWIFT_MAKE_MODULE_DOC_OPTS)
 
-C_TO_IL ?= "$(CLANG)" $(TARGET_OPTS) $(C_TO_IL_OPTS)
+C_TO_IL ?= "$(CLANG)" $(TARGET_OPTS) $(C_PACKAGES_OPTS) $(C_TO_IL_OPTS)
 
 #https://modocache.io/reading-and-understanding-the-swift-driver-source-code
 
@@ -547,7 +549,7 @@ DATA_SECTION_SIZE=--defsym=__DATA_REGION_LENGTH__=$(RAM_SIZE)
 endif
 
 PACKAGE_DIR = .build
-PACKAGE_MODULE_DIR = .build/checkouts
+PACKAGE_MODULES_DIR = .build/checkouts
 
 #packages
 all: $(FULL_BUILD_PATH) $(ALL_TARGETS)
@@ -579,24 +581,32 @@ clean_buildlog:
 	cat /dev/null > $(BUILD_LOG)
 
 ifeq ($(wildcard Package.swift),)
+
 packages-clean:
+packages-update:
+packages-build:
 packages:
+
 else
+
+PACKAGE_SUBDIRS = $(sort $(basename $(dir $(wildcard $(PACKAGE_MODULES_DIR)/*/))))
+PACKAGES = $(foreach dir,$(PACKAGE_SUBDIRS),$(shell basename $(dir)))
+$(info $(PACKAGE_SUBDIRS))
+
 packages-clean:
 	-rm -rf $(PACKAGE_DIR)
 
 packages-update:
 	swift package update
 
-PACKAGE_SUBDIRS = $(sort $(dir $(wildcard $(PACKAGE_MODULE_DIR)/*/)))
-PACKAGE_LIBRARIES = $(patsubst %,%/lib%.a,$(PACKAGE_SUBDIRS))
-
-$(PACKAGE_MODULE_DIR)/%/lib%.a: $(PACKAGE_MODULE_DIR)/%/Package.swift
-	$(MAKE) -C $(dir $@)
-
-packages-build: $(PACKAGE_LIBRARIES)
+packages-build: $(PACKAGE_SUBDIRS)
+	for i in $^; do make -C $$i; done
 
 packages: packages-update packages-build
+
+SWIFTC_PACKAGES_OPTS = $(PACKAGE_SUBDIRS:%=-I%)
+C_PACKAGES_OPTS = $(PACKAGE_SUBDIRS:%=-I%)
+LINK_PACKAGES_OPTS = $(PACKAGE_SUBDIRS:%=-L%)
 
 endif
 
@@ -667,7 +677,7 @@ ifeq ($(BUILD_MODULE_NAMED),)
 $(ELF_FILE) $(ELF_LINKER_OUTPUT_FILE) : $(FULL_BUILD_PATH) $(ALL_SWIFT_OBJECTS) $(ALL_C_OBJECTS) $(ALL_CPP_OBJECTS) $(ALL_ASM_OBJECTS) $(ELF_DEPS) $(AUTOLINK_FILE)
 	@echo $(ELF_BUILD_STATUS)
 	$(LD) -o $(ELF_FILE) $(ALL_SWIFT_OBJECTS) $(ALL_C_OBJECTS) $(ALL_CPP_OBJECTS) $(ALL_ASM_OBJECTS) $(TEXT_SECTION_SIZE) $(DATA_SECTION_SIZE) $(MISSING_RUNTIME_STUB) \
-	$(shell cat $(AUTOLINK_FILE)) $(LINK_LIBRARIES) $(ARCH_LD_END) 2>&1 > $(ELF_LINKER_OUTPUT_FILE) || (echo "**LINKING FAILED**" && exit -99)
+	$(shell cat $(AUTOLINK_FILE)) $(LINK_PACKAGES_OPTS) $(LINK_LIBRARIES) $(ARCH_LD_END) 2>&1 > $(ELF_LINKER_OUTPUT_FILE) || (echo "**LINKING FAILED**" && exit -99)
 	echo "Linked $(ELF_FILE)"
 
 else
