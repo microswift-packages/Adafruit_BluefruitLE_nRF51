@@ -1,17 +1,18 @@
-SETTINGS_FOLDER = .project
--include $(SETTINGS_FOLDER)/paths.include
--include $(SETTINGS_FOLDER)/board.include
--include $(SETTINGS_FOLDER)/settings.include
+SOURCE_DIR=/Users/carlpeto/Documents/Code/Adafruit_BluefruitLE_nRF51
+CPU_FREQUENCY=16000000
+MCU=atmega328p
+MAKE_TARGET=all
+CPP_EXTRA_DEFINES=-DARDUINO=100
+ARDUINO_LIB_CLANG_OPTIONS=-DARDUINO=101
+ADDITIONAL_CPP_FILES = Adafruit_BLEBattery.cpp Adafruit_BLEEddystone.cpp Adafruit_BLEGatt.cpp \
+Adafruit_BLEMIDI.cpp Adafruit_BluefruitLE_SPI.cpp Adafruit_BluefruitLE_UART.cpp \
+utility/Adafruit_FIFO.cpp Adafruit_ATParser.cpp Adafruit_BLE.cpp
 
-# this expansion point is dynamically created from the project manifest on both folder and bundle projects
-# marked as non optional because the build depends on it now, and it should always create
--include $(SETTINGS_FOLDER)/project.include
 
-FULL_BUILD_PATH=build/
-CLEAN_PATH=build
+FULL_BUILD_PATH=bin/
+CLEAN_PATH=bin
 
 ARCH_INCLUDES ?= -I "$(AVR_LIBGCC_INCLUDE_DIR)" -I "$(AVR_LIBC_INCLUDE_DIR)"
-ARCH_MODULE_DOC_INCLUDES ?= -I="$(AVR_LIBGCC_INCLUDE_DIR)" -I="$(AVR_LIBC_INCLUDE_DIR)"
 ARCH_CLANG_INCLUDES ?= -isystem "$(AVR_LIBGCC_INCLUDE_DIR)" -isystem "$(AVR_LIBC_INCLUDE_DIR)"
 ARCH_TARGET ?= avr-atmel-linux-gnueabihf
 ARCH_GNU_TOOLS_BIN_DIR ?= $(ATMEL_GNU_AVR_TOOLCHAIN_BIN)
@@ -28,6 +29,17 @@ ARCH_INT_BIT_WIDTH = 16
 ifeq ($(subst ',,$(AVR_TINY_STACK)),yes)
 AVR_CORE_SUFFIX=/tiny-stack
 endif
+
+AVR_BINUTILS_DIR=/usr/local/bin
+AVR_GCC_BIN_DIR=/usr/local/bin
+
+CPP_OPTS=-std=c++11 -ffunction-sections -Os
+AR_OPTS=rcs
+
+GCC_PLUS_OPTS=-mmcu=$(MCU) $(CPP_OPTS) -B"$(AVR_BINUTILS_DIR)" -iquote .
+AR="$(AVR_BINUTILS_DIR)/avr-ar" $(AR_OPTS)
+GCC_PLUS_BIN=$(AVR_GCC_BIN_DIR)/avr-gcc
+GCC_PLUS="$(GCC_PLUS_BIN)" $(GCC_PLUS_OPTS)
 
 AVR_LIBC_SUBDIR ?= avr-libc/lib/$(CORE)$(AVR_CORE_SUFFIX)
 AVR_LIBC_INCLUDE_SUBDIR ?= avr-libc/include
@@ -67,8 +79,6 @@ SED ?= sed
 OBJCOPY ?= "$(LINK_TOOLS_DIR)/$(ARCH_TOOL_PREFIX)objcopy"
 OBJDUMP ?= "$(LINK_TOOLS_DIR)/$(ARCH_TOOL_PREFIX)objdump"
 
-AR = "$(LINK_TOOLS_DIR)/$(ARCH_TOOL_PREFIX)ar" rcs
-
 TARGET_OPTS ?= -target $(ARCH_TARGET)
 
 MODULEMAP ?= $(wildcard ./module.modulemap)
@@ -77,65 +87,59 @@ MODULEMAP ?= $(wildcard ./module.modulemap)
 .PHONY : all clean packages packages-clean packages-update packages-build
 
 # find the module to build if appropriate
-ifeq ($(FIND_MODULE_MAP),yes)
 # read the module name from the modulemap file
 # try to run this command only once, use simple rather than recursive variable
 BUILD_MODULE_NAMED := $(shell sed -nEe '/^module /s/^module (.*) .*$$/\1/p' module.modulemap)
-# modules must not have a main.swift, it is a compile error
-MAIN_SWIFT_FILE =
-endif
 
-# main targets
-OBJ_FILE=$(FULL_BUILD_PATH)$(MAIN_SWIFT_FILE:.swift=.o)
-MAIN_MODULE_NAME=$(MAIN_SWIFT_FILE:.swift=)
-ELF_FILE=$(FULL_BUILD_PATH)$(MAIN_SWIFT_FILE:.swift=.elf)
-ELF_LINKER_OUTPUT_FILE=$(ELF_FILE:.elf=.elf.linkerOutput.txt)
+MODULE_NAME = $(BUILD_MODULE_NAMED)
 
 # C, C++, S
 
 ALL_CPP_FILES = $(ADDITIONAL_CPP_FILES)
 ALL_CPP_FILES_ND = $(notdir $(ALL_CPP_FILES))
-ALL_CPP_INTERMEDIATES = $(patsubst %,$(FULL_BUILD_PATH)%,$(ALL_CPP_FILES_ND:.cpp=.cpp.bc))
-ALL_CPP_OBJECTS = $(patsubst %,$(FULL_BUILD_PATH)%,$(ALL_CPP_FILES_ND:.cpp=.cpp.o))
+ALL_CPP_OBJECTS = $(patsubst %,$(FULL_BUILD_PATH)%,$(ALL_CPP_FILES_ND:.cpp=.o))
 
-ALL_TARGETS :=
-
-ifeq ($(BUILD_MODULE_NAMED),)
-# if we are NOT building a module, then we will want a HEX for upload, and diagnostics
-MODULE_NAME = $(MAIN_MODULE_NAME)
-else
-# we assume EXPORT_MODULE_PATH must be set, or it is an error
-.PHONY: $(EXPORT_MODULE_PATH)
-ifneq ($(EXPORT_MODULE_PATH),)
-ALL_TARGETS := clean_buildlog $(EXPORT_MODULE_PATH)
-else
-# unexpected fallback, for a build with no export directory, just build the module binaries
-ALL_TARGETS := $(MODULE_OUTPUT_FILES) $(FULL_BUILD_PATH)lib$(MODULE_NAME).a
-endif
-# modules do not use main.swift, it is a compilation error
-MAIN_SWIFT_FILE =
-MODULE_NAME = $(BUILD_MODULE_NAMED)
-endif
-
-
-# note this kills exit code so use set -o pipefail
-APPEND_BUILD_LOG ?= 2>&1|tee -a $(BUILD_LOG)
+ALL_TARGETS := $(FULL_BUILD_PATH)lib$(MODULE_NAME).a
 
 PACKAGE_DIR = .build
 PACKAGE_MODULES_DIR = .build/checkouts
 
-#packages
-all: $(FULL_BUILD_PATH) $(ALL_TARGETS)
+BIN_DIR_EXISTS = $(shell test -d $(BIN_DIR) && echo "EXISTS")
+IS_CURRENT_DIR_READONLY = $(shell test -w . || echo "READONLY")
+IS_BIN_DIR_READONLY = $(shell test -d $(BIN_DIR) && (test -w $(BIN_DIR) || echo "READONLY"))
 
-$(SETTINGS_FOLDER):
-	mkdir -p $@
+ifneq ($(wildcard $(GCC_PLUS_BIN)),)
+
+# AVR GCC exists, so we can build.
+
+ifeq ($(IS_BIN_DIR_READONLY),READONLY)
+$(info Read only binary directory found, relying on pre-built binaries.)
+all:
+	echo "DONE"
+else
+all: packages $(FULL_BUILD_PATH) $(ALL_TARGETS)
+endif
+
+else
+
+# AVR GCC not found, so we cannot build, or don't know how. We must have a pre-built binary
+# or we can't do anything. We won't report an error though in that case, just in case.
+
+ifneq ($(BIN_DIR_EXISTS),EXISTS)
+$(info avr-gcc not found at $(GCC_PLUS_BIN) and no pre-built binaries exist at $(BIN_DIR)... stopping...)
+all:
+	echo "CANNOT BUILD"
+else
+$(info avr-gcc not found at $(GCC_PLUS_BIN), relying on pre-built binaries only)
+all:
+	echo "DONE"
+endif
+
+endif
 
 clean:
 	-rm -rf $(CLEAN_PATH) 2> /dev/null
 	echo "Cleaned Files"
-
-clean_buildlog:
-	cat /dev/null > $(BUILD_LOG)
 
 PACKAGE_SUBDIRS = $(sort $(basename $(dir $(wildcard $(PACKAGE_MODULES_DIR)/*/))))
 PACKAGES = $(foreach dir,$(PACKAGE_SUBDIRS),$(shell basename $(dir)))
@@ -143,6 +147,7 @@ $(info $(PACKAGE_SUBDIRS))
 
 packages-clean:
 	-rm -rf $(PACKAGE_DIR)
+	-rm Package.resolved
 
 packages-update:
 	swift package update
@@ -150,7 +155,13 @@ packages-update:
 packages-build: $(PACKAGE_SUBDIRS)
 	for i in $^; do make -C $$i; done
 
+ifeq ($(IS_CURRENT_DIR_READONLY),READONLY)
+$(info Current directory is readonly, assuming this is a downloaded SPM package.)
+packages:
+	echo "Transitive dependencies skipped"
+else
 packages: packages-update packages-build
+endif
 
 SWIFTC_PACKAGES_OPTS = $(PACKAGE_SUBDIRS:%=-I%)
 C_PACKAGES_OPTS = $(PACKAGE_SUBDIRS:%=-I%)
@@ -161,21 +172,16 @@ $(FULL_BUILD_PATH):
 	mkdir -p $(FULL_BUILD_PATH)
 endif
 
-ifeq ($(BUILD_MODULE_NAMED),)
+$(FULL_BUILD_PATH)lib$(MODULE_NAME).a: $(FULL_BUILD_PATH) $(ALL_CPP_OBJECTS)
+	$(AR) -o $@ $(ALL_CPP_OBJECTS)
 
-else
-# alternative, when building a library...
-
-$(FULL_BUILD_PATH)lib$(MODULE_NAME).a: $(FULL_BUILD_PATH) $(ALL_SWIFT_OBJECTS) $(ALL_C_OBJECTS) $(ALL_CPP_OBJECTS) $(ALL_ASM_OBJECTS)
-	@echo "** Create library $(MODULE_NAME)"
-	set -o pipefail && $(AR) -o $@ $(ALL_SWIFT_OBJECTS) $(ALL_C_OBJECTS) $(ALL_CPP_OBJECTS) $(ALL_ASM_OBJECTS) $(APPEND_BUILD_LOG)
-
-endif
-
-
-# automated dependencies, only for C/CPP, swift should automatically depend on all swift files in the module (see below)
-# note this still misses swift's downward dependencies on a tree of .h files, not sure how to fix that
+# automated dependencies, only for C/CPP
 -include $(ALL_CLANG_DEPENDENCIES)
+
+$(info PACKAGE_SUBDIRS $(PACKAGE_SUBDIRS))
+
+$(FULL_BUILD_PATH)%.o: %.cpp
+	$(GCC_PLUS) -I . -DF_CPU=16000000UL -c -o $@ $<
 
 
 # *** RECIPIES AND RULES ***

@@ -1,0 +1,4 @@
+module Adafruit_BLE {
+  header "Adafruit_BLE.h"
+	link "Adafruit_BLE"
+}
