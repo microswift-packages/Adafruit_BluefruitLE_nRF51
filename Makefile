@@ -146,7 +146,6 @@ clean:
 	echo "Cleaned Files"
 
 PACKAGE_SUBDIRS = $(sort $(basename $(dir $(wildcard $(PACKAGE_MODULES_DIR)/*/))))
-PACKAGES = $(foreach dir,$(PACKAGE_SUBDIRS),$(shell basename $(dir)))
 
 packages-clean:
 	-rm -rf $(PACKAGE_DIR)
@@ -155,8 +154,8 @@ packages-clean:
 packages-update:
 	swift package update
 
-packages-build: $(PACKAGE_SUBDIRS)
-	for i in $^; do echo Making $$i;make -C $$i; done
+packages-build:
+	for i in $(PACKAGE_SUBDIRS); do echo Making $$i;make -C $$i; done
 
 ifeq ($(IS_CURRENT_DIR_READONLY),READONLY)
 $(info Current directory is readonly, assuming this is a downloaded SPM package.)
@@ -180,8 +179,6 @@ $(FULL_BUILD_PATH)lib$(MODULE_NAME).a: $(FULL_BUILD_PATH) $(ALL_CPP_OBJECTS)
 
 # automated dependencies, only for C/CPP
 -include $(ALL_CLANG_DEPENDENCIES)
-
-$(info PACKAGE_SUBDIRS $(PACKAGE_SUBDIRS))
 
 $(FULL_BUILD_PATH)Adafruit_FIFO.o: utility/Adafruit_FIFO.cpp
 	$(GCC_PLUS) -c -o $@ $<
