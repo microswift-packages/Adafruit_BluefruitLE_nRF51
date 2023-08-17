@@ -36,7 +36,7 @@ AVR_GCC_BIN_DIR=/usr/local/bin
 CPP_OPTS=-std=c++11 -ffunction-sections -Os
 AR_OPTS=rcs
 
-GCC_PLUS_OPTS=-mmcu=$(MCU) $(CPP_OPTS) -B"$(AVR_BINUTILS_DIR)" -iquote .
+GCC_PLUS_OPTS=-mmcu=$(MCU) $(CPP_OPTS) -I. $(C_PACKAGES_OPTS) $(AVR_DEFINES) $(ARCH_CLANG_INCLUDES) 
 AR="$(AVR_BINUTILS_DIR)/avr-ar" $(AR_OPTS)
 GCC_PLUS_BIN=$(AVR_GCC_BIN_DIR)/avr-gcc
 GCC_PLUS="$(GCC_PLUS_BIN)" $(GCC_PLUS_OPTS)
@@ -52,8 +52,12 @@ AVR_LIBC_INCLUDE_DIR ?= $(AVR_LINK_LIBRARIES_DIR)/$(AVR_LIBC_INCLUDE_SUBDIR)
 AVR_LIBGCC_DIR ?= $(AVR_LINK_LIBRARIES_DIR)/$(AVR_LIBGCC_SUBDIR)
 AVR_LIBGCC_INCLUDE_DIR ?= $(AVR_LINK_LIBRARIES_DIR)/$(AVR_LIBGCC_INCLUDE_SUBDIR)
 
+AVR_LINK_LIBRARIES_DIR ?= $(SCRIPTDIR)/gpl-tools-avr/lib
+
+SCRIPTDIR ?= /Applications/Swift For Arduino.app/Contents/XPCServices/BuildEngine.xpc/Contents/Resources
+
 AVR_CLANG_OPTS = -march=$(CORE)
-AVR_DEFINES = -DAVR_LIBC_DEFINED -DLIBC_DEFINED -D$(MCUMACRO) -DF_CPU=$(CPU_FREQUENCY)
+AVR_DEFINES = -DAVR_LIBC_DEFINED -DLIBC_DEFINED -DF_CPU=$(CPU_FREQUENCY)
 #default to Arduino UNO (Atmega 328P)
 MCU ?= atmega328p
 CORE ?= avr5
@@ -143,7 +147,6 @@ clean:
 
 PACKAGE_SUBDIRS = $(sort $(basename $(dir $(wildcard $(PACKAGE_MODULES_DIR)/*/))))
 PACKAGES = $(foreach dir,$(PACKAGE_SUBDIRS),$(shell basename $(dir)))
-$(info $(PACKAGE_SUBDIRS))
 
 packages-clean:
 	-rm -rf $(PACKAGE_DIR)
@@ -153,7 +156,7 @@ packages-update:
 	swift package update
 
 packages-build: $(PACKAGE_SUBDIRS)
-	for i in $^; do make -C $$i; done
+	for i in $^; do echo Making $$i;make -C $$i; done
 
 ifeq ($(IS_CURRENT_DIR_READONLY),READONLY)
 $(info Current directory is readonly, assuming this is a downloaded SPM package.)
@@ -180,8 +183,11 @@ $(FULL_BUILD_PATH)lib$(MODULE_NAME).a: $(FULL_BUILD_PATH) $(ALL_CPP_OBJECTS)
 
 $(info PACKAGE_SUBDIRS $(PACKAGE_SUBDIRS))
 
+$(FULL_BUILD_PATH)Adafruit_FIFO.o: utility/Adafruit_FIFO.cpp
+	$(GCC_PLUS) -c -o $@ $<
+
 $(FULL_BUILD_PATH)%.o: %.cpp
-	$(GCC_PLUS) -I . -DF_CPU=16000000UL -c -o $@ $<
+	$(GCC_PLUS) -c -o $@ $<
 
 
 # *** RECIPIES AND RULES ***
