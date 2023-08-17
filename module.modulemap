@@ -1,4 +1,10 @@
 module Adafruit_BLE {
+  // Headers that only function in C++
+  #if defined(__cplusplus)
   header "Adafruit_BLE.h"
+  #endif
+
+  // Module has no Swift accessible parts, must be imported into C++.
+
 	link "Adafruit_BLE"
 }
