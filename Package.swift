@@ -16,7 +16,7 @@ let package = Package(
     targets: [
         .target(
             name: "Adafruit_BLE",
-            dependencies: ["Arduino"]),
+            dependencies: ["Arduino"],
             path: "microswift",
             sources: ["main.swift"]),
     ]
