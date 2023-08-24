@@ -30,8 +30,18 @@ ifeq ($(subst ',,$(AVR_TINY_STACK)),yes)
 AVR_CORE_SUFFIX=/tiny-stack
 endif
 
-AVR_BINUTILS_DIR=/usr/local/bin
-AVR_GCC_BIN_DIR=/usr/local/bin
+# try different versions of AVR GCC
+AVR_GCC_BIN_DIR := /usr/local/bin
+AVR_BINUTILS_DIR := /usr/local/bin
+
+ifeq ($(wildcard $(AVR_GCC_BIN_DIR)/avr-gcc),)
+AVR_GCC_BIN_DIR := /opt/homebrew/bin
+AVR_BINUTILS_DIR := /opt/homebrew/bin # Binutils is probably in the same location as avr-gcc, if installed.
+ifeq ($(wildcard $(AVR_GCC_BIN_DIR)/avr-gcc),)
+$(error avr-gcc not found in the usual locations for homebrew, please check install. AVR GCC is required to build this package.)
+endif
+endif
+
 
 CPP_OPTS=-std=c++11 -ffunction-sections -Os
 AR_OPTS=rcs
