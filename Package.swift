@@ -11,7 +11,7 @@ let package = Package(
     ],
     dependencies: [
         // .package(url: "https://github.com/microswift-packages/Arduino", .branch("main")),
-        .package(url: "file:///Users/carlpeto/Documents/Code/Arduino", .branch("main")),
+        .package(url: "file:///Users/petoc01/Documents/Code/Arduino", .branch("main")),
     ],
     targets: [
         .target(
