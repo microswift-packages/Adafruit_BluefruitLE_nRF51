@@ -98,13 +98,12 @@ TARGET_OPTS ?= -target $(ARCH_TARGET)
 MODULEMAP ?= $(wildcard ./module.modulemap)
 
 # *** MAIN PHONEY TARGETS ***
-.PHONY : all clean packages packages-clean packages-update packages-build
+.PHONY : all clean
 
 # find the module to build if appropriate
 # read the module name from the modulemap file
 # try to run this command only once, use simple rather than recursive variable
 BUILD_MODULE_NAMED := $(shell sed -nEe '/^module /s/^module (.*) .*$$/\1/p' module.modulemap)
-
 MODULE_NAME = $(BUILD_MODULE_NAMED)
 
 # C, C++, S
@@ -115,69 +114,11 @@ ALL_CPP_OBJECTS = $(patsubst %,$(FULL_BUILD_PATH)%,$(ALL_CPP_FILES_ND:.cpp=.o))
 
 ALL_TARGETS := $(FULL_BUILD_PATH)lib$(MODULE_NAME).a
 
-PACKAGE_DIR = .build
-PACKAGE_MODULES_DIR = .build/checkouts
-
-BIN_DIR_EXISTS = $(shell test -d $(BIN_DIR) && echo "EXISTS")
-IS_CURRENT_DIR_READONLY = $(shell test -w . || echo "READONLY")
-IS_BIN_DIR_READONLY = $(shell test -d $(BIN_DIR) && (test -w $(BIN_DIR) || echo "READONLY"))
-
-ifneq ($(wildcard $(GCC_PLUS_BIN)),)
-
-# AVR GCC exists, so we can build.
-
-ifeq ($(IS_BIN_DIR_READONLY),READONLY)
-$(info Read only binary directory found, relying on pre-built binaries.)
-all:
-	echo "DONE"
-else
-all: packages $(FULL_BUILD_PATH) $(ALL_TARGETS)
-endif
-
-else
-
-# AVR GCC not found, so we cannot build, or don't know how. We must have a pre-built binary
-# or we can't do anything. We won't report an error though in that case, just in case.
-
-ifneq ($(BIN_DIR_EXISTS),EXISTS)
-$(info avr-gcc not found at $(GCC_PLUS_BIN) and no pre-built binaries exist at $(BIN_DIR)... stopping...)
-all:
-	echo "CANNOT BUILD"
-else
-$(info avr-gcc not found at $(GCC_PLUS_BIN), relying on pre-built binaries only)
-all:
-	echo "DONE"
-endif
-
-endif
+all: $(FULL_BUILD_PATH) $(ALL_TARGETS)
 
 clean:
 	-rm -rf $(CLEAN_PATH) 2> /dev/null
 	echo "Cleaned Files"
-
-PACKAGE_SUBDIRS = $(sort $(basename $(dir $(wildcard $(PACKAGE_MODULES_DIR)/*/))))
-
-packages-clean:
-	-rm -rf $(PACKAGE_DIR)
-	-rm Package.resolved
-
-packages-update:
-	swift package update
-
-packages-build:
-	for i in $(PACKAGE_SUBDIRS); do echo Making $$i;make -C $$i; done
-
-ifeq ($(IS_CURRENT_DIR_READONLY),READONLY)
-$(info Current directory is readonly, assuming this is a downloaded SPM package.)
-packages:
-	echo "Transitive dependencies skipped"
-else
-packages: packages-update packages-build
-endif
-
-SWIFTC_PACKAGES_OPTS = $(PACKAGE_SUBDIRS:%=-I%)
-C_PACKAGES_OPTS = $(PACKAGE_SUBDIRS:%=-I%)
-LINK_PACKAGES_OPTS = $(PACKAGE_SUBDIRS:%=-L%)
 
 ifneq ($(FULL_BUILD_PATH),)
 $(FULL_BUILD_PATH):
