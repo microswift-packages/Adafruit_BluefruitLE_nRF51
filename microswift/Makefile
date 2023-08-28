@@ -1,9 +1,5 @@
-SOURCE_DIR=/Users/carlpeto/Documents/Code/Adafruit_BluefruitLE_nRF51
 CPU_FREQUENCY=16000000
 MCU=atmega328p
-MAKE_TARGET=all
-CPP_EXTRA_DEFINES=-DARDUINO=100
-ARDUINO_LIB_CLANG_OPTIONS=-DARDUINO=101
 ADDITIONAL_CPP_FILES = Adafruit_BLEBattery.cpp Adafruit_BLEEddystone.cpp Adafruit_BLEGatt.cpp \
 Adafruit_BLEMIDI.cpp Adafruit_BluefruitLE_SPI.cpp Adafruit_BluefruitLE_UART.cpp \
 utility/Adafruit_FIFO.cpp Adafruit_ATParser.cpp Adafruit_BLE.cpp
