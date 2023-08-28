@@ -1,0 +1,7 @@
+module Adafruit_BLE {
+  // Module has no Swift accessible parts, must be imported into C++.
+
+  requires cplusplus
+  header "Adafruit_BLE.h"
+  link "Adafruit_BLE"
+}
